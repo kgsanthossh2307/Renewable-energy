@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>India Energy — Statewise Generation, Renewables & Per Capita Use</title>
+<style>
+  :root{
+    --bg:#f2f6fc; --panel:#fff; --ink:#1e293b; --muted:#6b7a90;
+    --brand:#2166ae; --brand-2:#1a4f82; --line:#e1e8ee; --row:#f7fbff;
+    --ok:#12a150; --warn:#e9a017; --bad:#e05656;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    background:linear-gradient(180deg,#f2f6fc 0%,#eef4fb 100%); color:var(--ink);
+    -webkit-font-smoothing:antialiased; padding:32px;
+  }
+  .shell{max-width:1200px; margin:auto;}
+  header{
+    display:grid; gap:8px; justify-items:center; text-align:center; margin-bottom:18px;
+    animation:fadeDown 800ms ease both;
+  }
+  header h1{color:var(--brand); margin:0; letter-spacing:.2px}
+  header p{color:var(--muted); margin:0}
+  .card{
+    background:var(--panel); border-radius:var(--radius);
+    box-shadow:0 10px 24px rgba(33,102,174,.08), 0 2px 6px rgba(0,0,0,.04);
+    padding:18px;
+    animation:fadeIn 700ms ease both 120ms;
+  }
+  .controls{
+    display:grid; grid-template-columns:1.5fr repeat(4,1fr) auto;
+    gap:12px; align-items:end;
+  }
+  .field label{display:block; font-size:.82rem; color:var(--muted); margin:0 0 6px}
+  input[type="text"], select{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; outline:none;
+    background:#fafcff;
+  }
+  .range{display:flex; gap:8px; align-items:center}
+  .range input[type="range"]{width:100%}
+  .badge{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px;
+    background:#eaf2fa; color:var(--brand); font-weight:600; font-size:.9rem;
+    animation:pulse 2.2s ease-in-out infinite;
+  }
+  .table-wrap{
+    margin-top:14px; border:1px solid var(--line); border-radius:14px; overflow:hidden;
+  }
+  table{width:100%; border-collapse:collapse}
+  thead th{
+    position:sticky; top:0; z-index:2;
+    background:linear-gradient(180deg,var(--brand) 0%, #1e5a98 100%);
+    color:#fff; text-align:left; font-weight:700; padding:12px 14px; letter-spacing:.2px;
+    cursor:pointer; user-select:none;
+  }
+  thead th .sort{opacity:.7; font-size:.9em; margin-left:6px}
+  tbody td{padding:12px 14px; border-bottom:1px solid var(--line); vertical-align:middle}
+  tbody tr:nth-child(even){background:var(--row)}
+  tbody tr{
+    transform:translateY(10px); opacity:0;
+    animation:rowIn .6s cubic-bezier(.2,.8,.2,1) forwards;
+  }
+  tbody tr:hover{background:#eaf2fa}
+  .pill{display:inline-block; padding:6px 10px; border-radius:999px; font-weight:600; font-size:.85rem}
+  .pill.good{background:#e9fbf2; color:var(--ok)}
+  .pill.mid{background:#fff7e8; color:var(--warn)}
+  .pill.bad{background:#ffecec; color:var(--bad)}
+  .bar{
+    height:10px; border-radius:999px; background:#ecf2f8; overflow:hidden; position:relative;
+  }
+  .bar > span{
+    position:absolute; inset:0 auto 0 0; width:0%;
+    background:linear-gradient(90deg, var(--brand), #28a0f0);
+    border-radius:inherit; transition:width .8s cubic-bezier(.2,.8,.2,1);
+  }
+  .percap{display:flex; align-items:center; gap:10px}
+  .percap small{color:var(--muted)}
+  .footer-note{color:var(--muted); font-size:.86rem; margin-top:10px}
+  .chip{display:inline-flex; gap:6px; align-items:center; padding:6px 10px; border-radius:999px; background:#f1f6fe; color:#1c4b7c}
+  .actions{display:flex; gap:10px; justify-content:flex-end; margin-top:10px}
+  .btn{
+    padding:10px 14px; border-radius:12px; border:1px solid var(--line); background:#fff; cursor:pointer;
+  }
+  .btn.primary{background:var(--brand); color:#fff; border-color:transparent}
+  .btn:active{transform:translateY(1px)}
+  /* Modal */
+  dialog{
+    border:none; border-radius:18px; padding:0; width:min(680px, 92vw); box-shadow:0 24px 64px rgba(0,0,0,.25);
+    animation:pop .35s cubic-bezier(.2,.8,.2,1);
+  }
+  dialog::backdrop{background:rgba(2,15,34,.45); backdrop-filter:blur(2px)}
+  .modal{
+    padding:18px 18px 22px; background:var(--panel); border-radius:18px;
+  }
+  .modal h3{margin:0 0 4px; color:var(--brand)}
+  .modal .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px}
+  .kv{background:#f7fbff; border:1px dashed #d6e5f6; padding:12px; border-radius:12px}
+  .kv label{display:block; font-size:.8rem; color:var(--muted)}
+  .kv strong{font-size:1.15rem}
+  .kv .bar{margin-top:8px}
+  .modal .close{position:absolute; inset:10px 12px auto auto; background:#fff; border:1px solid var(--line); border-radius:10px; padding:6px 10px; cursor:pointer}
+  /* Ripple on row click */
+  .ripple{
+    position:relative; overflow:hidden;
+  }
+  .ripple::after{
+    content:""; position:absolute; width:10px; height:10px; background:rgba(33,102,174,.18); border-radius:50%;
+    transform:scale(0); opacity:0; pointer-events:none;
+    transition:transform .6s ease, opacity .8s ease;
+  }
+  .ripple.rippling::after{transform:scale(30); opacity:1}
+  /* Animations */
+  @keyframes fadeIn{from{opacity:0; transform:scale(.98)} to{opacity:1; transform:scale(1)}}
+  @keyframes fadeDown{from{opacity:0; transform:translateY(-12px)} to{opacity:1; transform:translateY(0)}}
+  @keyframes rowIn{to{transform:translateY(0); opacity:1}}
+  @keyframes pulse{
+    0%,100%{transform:scale(1)} 50%{transform:scale(1.04)}
+  }
+  @keyframes pop{from{opacity:0; transform:translateY(12px) scale(.98)} to{opacity:1; transform:translateY(0) scale(1)}}
+  /* Responsive */
+  @media (max-width:900px){
+    .controls{grid-template-columns:1fr 1fr; grid-auto-rows:auto}
+  }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <span class="badge">⚡ Statewise Energy Dashboard — India</span>
+      <h1>Comparison of Energy Generation & Usage by State/UT</h1>
+      <p>Explore total capacity, renewable share, and per-capita consumption with sorting, filters, and animated insights.</p>
+    </header>
+
+    <section class="card">
+      <div class="controls">
+        <div class="field">
+          <label>Search State/UT</label>
+          <input id="search" type="text" placeholder="e.g., Gujarat, Tamil Nadu, Delhi…" />
+        </div>
+        <div class="field">
+          <label>Type</label>
+          <select id="typeFilter">
+            <option value="all">All</option>
+            <option value="state">States only</option>
+            <option value="ut">UTs only</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Renewables ≥ <span id="renVal">0</span>%</label>
+          <div class="range">
+            <input id="renMin" type="range" min="0" max="100" value="0" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Per Capita ≥ <span id="pcVal">0</span> kWh</label>
+          <div class="range">
+            <input id="pcMin" type="range" min="0" max="3000" step="50" value="0" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Sort by</label>
+          <select id="sortBy">
+            <option value="name">Name</option>
+            <option value="capacity">Total Capacity (GW)</option>
+            <option value="renew">Renewables %</option>
+            <option value="percap">Per Capita (kWh)</option>
+          </select>
+        </div>
+        <button class="btn primary" id="exportCsv" title="Download filtered data">⬇ Export CSV</button>
+      </div>
+
+      <div class="table-wrap">
+        <table id="table">
+          <thead>
+            <tr>
+              <th data-key="name">State/UT <span class="sort">↕</span></th>
+              <th data-key="capacity">Total Installed Capacity (GW) <span class="sort">↕</span></th>
+              <th data-key="renew">Renewables Share (%) <span class="sort">↕</span></th>
+              <th data-key="percap">Per Capita (kWh/yr) <span class="sort">↕</span></th>
+            </tr>
+          </thead>
+          <tbody><!-- rows injected by JS --></tbody>
+        </table>
+      </div>
+
+      <div class="actions">
+        <span class="chip">Tip: Click any row for details</span>
+      </div>
+
+      <p class="footer-note">
+        <em>Note:</em> Values for states provided by you are used as-is. For some UTs and a few states where data wasn’t provided, values are shown as “—”. Replace with official figures when available.
+      </p>
+    </section>
+  </div>
+
+  <!-- Detail Modal -->
+  <dialog id="detail">
+    <div class="modal">
+      <button class="close" onclick="document.getElementById('detail').close()">✕</button>
+      <h3 id="mTitle">State</h3>
+      <p id="mType" class="footer-note" style="margin:6px 0 2px"></p>
+      <div class="grid">
+        <div class="kv">
+          <label>Total Installed Capacity</label>
+          <strong id="mCap">—</strong>
+        </div>
+        <div class="kv">
+          <label>Renewables Share</label>
+          <strong id="mRen">—</strong>
+          <div class="bar" style="margin-top:8px"><span id="mRenBar"></span></div>
+        </div>
+        <div class="kv">
+          <label>Per Capita Consumption</label>
+          <strong id="mPc">—</strong>
+          <div class="bar" style="margin-top:8px"><span id="mPcBar"></span></div>
+        </div>
+        <div class="kv">
+          <label>Status</label>
+          <span id="mBadge" class="pill mid">—</span>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+<script>
+/** ---------------------------
+ * Data: 28 States + 8 UTs
+ * Numbers come from your table where given; others are left null (rendered as “—”).
+ * Update freely to slot in official stats later.
+ * --------------------------*/
+const data = [
+  // STATES
+  {type:'state', name:'Andhra Pradesh', capacity:25, renew:29, percap:1019},
+  {type:'state', name:'Arunachal Pradesh', capacity:1.2, renew:52, percap:652},
+  {type:'state', name:'Assam', capacity:2.5, renew:13, percap:371},
+  {type:'state', name:'Bihar', capacity:7, renew:7, percap:311},
+  {type:'state', name:'Chhattisgarh', capacity:11, renew:14, percap:1432},
+  {type:'state', name:'Goa', capacity:0.65, renew:3, percap:2208},
+  {type:'state', name:'Gujarat', capacity:63, renew:45, percap:2378},
+  {type:'state', name:'Haryana', capacity:12, renew:10, percap:1234},
+  {type:'state', name:'Himachal Pradesh', capacity:5, renew:83, percap:1407},
+  {type:'state', name:'Jharkhand', capacity:4, renew:8, percap:514},
+  {type:'state', name:'Karnataka', capacity:31, renew:65, percap:2000},
+  {type:'state', name:'Kerala', capacity:6, renew:32, percap:757},
+  {type:'state', name:'Madhya Pradesh', capacity:27, renew:16, percap:1075},
+  {type:'state', name:'Maharashtra', capacity:53, renew:28, percap:1424},
+  {type:'state', name:'Manipur', capacity:0.366, renew:13, percap:429},
+  {type:'state', name:'Meghalaya', capacity:0.652, renew:72, percap:635},
+  {type:'state', name:'Mizoram', capacity:0.487, renew:74, percap:513},
+  {type:'state', name:'Nagaland', capacity:0.548, renew:50, percap:395},
+  {type:'state', name:'Odisha', capacity:14, renew:10, percap:1059},
+  {type:'state', name:'Punjab', capacity:14, renew:16, percap:2046},
+  {type:'state', name:'Rajasthan', capacity:52, renew:41, percap:1282},
+  {type:'state', name:'Sikkim', capacity:0.635, renew:89, percap:590},
+  {type:'state', name:'Tamil Nadu', capacity:36, renew:47, percap:1866},
+  {type:'state', name:'Telangana', capacity:17, renew:20, percap:1158},
+  {type:'state', name:'Tripura', capacity:0.376, renew:13, percap:336},
+  {type:'state', name:'Uttar Pradesh', capacity:29, renew:11, percap:606},
+  {type:'state', name:'Uttarakhand', capacity:2.5, renew:65, percap:1214},
+  {type:'state', name:'West Bengal', capacity:10, renew:8, percap:726},
+  // UTs
+  {type:'ut', name:'Delhi', capacity:5, renew:9, percap:1548},
+  {type:'ut', name:'Jammu & Kashmir', capacity:null, renew:null, percap:null},
+  {type:'ut', name:'Ladakh', capacity:null, renew:null, percap:null},
+  {type:'ut', name:'Chandigarh', capacity:null, renew:null, percap:null},
+  {type:'ut', name:'Puducherry', capacity:null, renew:null, percap:null},
+  {type:'ut', name:'Andaman & Nicobar Islands', capacity:null, renew:null, percap:null},
+  {type:'ut', name:'Dadra & Nagar Haveli and Daman & Diu', capacity:null, renew:null, percap:null},
+  {type:'ut', name:'Lakshadweep', capacity:null, renew:null, percap:null},
+];
+
+const tbody = document.querySelector('#table tbody');
+const search = document.getElementById('search');
+const typeFilter = document.getElementById('typeFilter');
+const renMin = document.getElementById('renMin');
+const pcMin = document.getElementById('pcMin');
+const renVal = document.getElementById('renVal');
+const pcVal = document.getElementById('pcVal');
+const sortBy = document.getElementById('sortBy');
+const exportBtn = document.getElementById('exportCsv');
+const detail = document.getElementById('detail');
+
+let sortDir = 1; // 1 asc, -1 desc
+let sortKey = 'name';
+
+function healthBadge(renew){
+  if(renew == null) return {cls:'mid', txt:'Insufficient data'};
+  if(renew >= 45) return {cls:'good', txt:'High RE share'};
+  if(renew >= 20) return {cls:'mid', txt:'Moderate RE share'};
+  return {cls:'bad', txt:'Low RE share'};
+}
+
+function toCell(val, suffix=''){
+  return (val==null || Number.isNaN(val)) ? '—' : `${val}${suffix}`;
+}
+
+function barWidth(val, max=100){
+  if(val==null) return '0%';
+  let v = Math.max(0, Math.min(val, max));
+  return (v/max*100)+'%';
+}
+
+function render(){
+  const q = search.value.trim().toLowerCase();
+  renVal.textContent = renMin.value;
+  pcVal.textContent = pcMin.value;
+
+  // decide sort
+  sortKey = sortBy.value;
+
+  let rows = data
+    .filter(d => typeFilter.value === 'all' ? true : d.type === typeFilter.value)
+    .filter(d => !q || d.name.toLowerCase().includes(q))
+    .filter(d => (d.renew==null ? true : d.renew >= +renMin.value))
+    .filter(d => (d.percap==null ? true : d.percap >= +pcMin.value))
+    .slice()
+    .sort((a,b)=>{
+      let A = a[sortKey], B = b[sortKey];
+      // nulls last
+      if(A==null && B==null) return 0;
+      if(A==null) return 1;
+      if(B==null) return -1;
+      if(typeof A === 'string') return sortDir * A.localeCompare(B);
+      return sortDir * (A - B);
+    });
+
+  tbody.innerHTML = '';
+  rows.forEach((d,i)=>{
+    const tr = document.createElement('tr');
+    tr.className = 'ripple';
+    tr.style.animationDelay = (80*i)+'ms';
+
+    const badge = healthBadge(d.renew);
+
+    tr.innerHTML = `
+      <td><strong>${d.name}</strong><br><small style="color:#6b7a90">${d.type==='state'?'State':'Union Territory'}</small></td>
+      <td>${toCell(d.capacity,' GW')}</td>
+      <td>
+        <span class="pill ${badge.cls}" title="${badge.txt}">${toCell(d.renew,'%')}</span>
+        <div class="bar" style="margin-top:6px"><span style="width:${barWidth(d.renew)}"></span></div>
+      </td>
+      <td>
+        <div class="percap">
+          <strong>${toCell(d.percap)}</strong><small>kWh/yr</small>
+        </div>
+        <div class="bar" style="margin-top:6px"><span style="width:${barWidth(d.percap,3000)}"></span></div>
+      </td>
+    `;
+
+    // ripple effect
+    tr.addEventListener('click', (e)=>{
+      const r = tr.getBoundingClientRect();
+      const x = e.clientX - r.left, y = e.clientY - r.top;
+      tr.style.setProperty('--rx', x+'px');
+      tr.style.setProperty('--ry', y+'px');
+      tr.classList.remove('rippling'); void tr.offsetWidth; tr.classList.add('rippling');
+      openDetail(d);
+      setTimeout(()=>tr.classList.remove('rippling'), 500);
+      const ra = tr.querySelector('::after');
+    });
+    // place ripple origin
+    tr.addEventListener('mousedown',(e)=>{
+      const x = e.offsetX, y = e.offsetY;
+      tr.style.setProperty('--rx', x+'px');
+      tr.style.setProperty('--ry', y+'px');
+      tr.style.setProperty('--rip', 1);
+    });
+    tr.addEventListener('animationend', ()=>{ /* rows settle */ });
+
+    // attach custom ripple coordinates via CSS var
+    tr.addEventListener('click', ()=>{
+      tr.style.setProperty('--rx','50%'); tr.style.setProperty('--ry','50%');
+    });
+
+    // position ripple pseudo element
+    tr.addEventListener('pointerdown', (e)=>{
+      const rect = tr.getBoundingClientRect();
+      tr.style.setProperty('--rx', (e.clientX-rect.left)+'px');
+      tr.style.setProperty('--ry', (e.clientY-rect.top)+'px');
+    });
+
+    // inject ripple coords into CSS ::after
+    tr.addEventListener('transitionend', ()=>{});
+
+    // sync ::after position
+    tr.addEventListener('mousemove', ()=>{})
+
+    tr.style.setProperty('--rx','50%');
+    tr.style.setProperty('--ry','50%');
+    tr.style.cssText += `
+      --rx:50%;
+      --ry:50%;
+    `;
+    // style for ripple (inline since we need vars per-row)
+    tr.style.position = 'relative';
+    tr.addEventListener('click', ()=>{
+      tr.classList.add('rippling');
+      setTimeout(()=>tr.classList.remove('rippling'), 500);
+    });
+    tr.style.setProperty('--ripple-x','50%');
+
+    // patch ::after via inline style (works with our CSS class)
+    tr.addEventListener('click', (ev)=>{
+      const rect = tr.getBoundingClientRect();
+      const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+      tr.style.setProperty('--rx', x+'px'); tr.style.setProperty('--ry', y+'px');
+    });
+
+    // Set pseudo element position by style attribute each click
+    tr.addEventListener('click', ()=>{
+      tr.style.setProperty('--rx', '50%'); tr.style.setProperty('--ry', '50%');
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  // Reveal on scroll (IntersectionObserver)
+  const io = new IntersectionObserver((entries)=>{
+    for(const e of entries){
+      if(e.isIntersecting){
+        e.target.style.animationPlayState = 'running';
+        io.unobserve(e.target);
+      }
+    }
+  }, {threshold:.08});
+  document.querySelectorAll('tbody tr').forEach(tr=>io.observe(tr));
+}
+
+// Modal open
+function openDetail(d){
+  document.getElementById('mTitle').textContent = d.name;
+  document.getElementById('mType').textContent = d.type==='state' ? 'Type: State' : 'Type: Union Territory';
+  document.getElementById('mCap').textContent = toCell(d.capacity,' GW');
+  document.getElementById('mRen').textContent = toCell(d.renew,' %');
+  document.getElementById('mPc').textContent = toCell(d.percap,' kWh/yr');
+
+  const renBar = document.getElementById('mRenBar');
+  const pcBar = document.getElementById('mPcBar');
+  renBar.style.width = '0%'; pcBar.style.width = '0%';
+  requestAnimationFrame(()=>{
+    renBar.style.width = barWidth(d.renew);
+    pcBar.style.width = barWidth(d.percap, 3000);
+  });
+
+  const badge = healthBadge(d.renew);
+  const mBadge = document.getElementById('mBadge');
+  mBadge.className = `pill ${badge.cls}`;
+  mBadge.textContent = badge.txt;
+
+  detail.showModal();
+}
+
+// Export CSV of current filtered view
+function exportCSV(rows){
+  const header = ['Type','Name','Total Capacity (GW)','Renewables (%)','Per Capita (kWh/yr)'];
+  const out = [header.join(',')];
+  rows.forEach(d=>{
+    out.push([
+      d.type, `"${d.name}"`,
+      d.capacity ?? '', d.renew ?? '', d.percap ?? ''
+    ].join(','));
+  });
+  const blob = new Blob([out.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'india_energy_statewise.csv';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+// Hook up controls
+search.addEventListener('input', render);
+typeFilter.addEventListener('change', render);
+renMin.addEventListener('input', render);
+pcMin.addEventListener('input', render);
+sortBy.addEventListener('change', ()=>{ sortDir = 1; render(); });
+
+// Make header th clickable to flip sort direction quickly
+document.querySelectorAll('thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(key){
+      if(sortKey === key){ sortDir *= -1; } else { sortKey = key; sortDir = 1; sortBy.value = key; }
+      render();
+    }
+  });
+});
+
+exportBtn.addEventListener('click', ()=>{
+  // Recompute filtered + sorted rows like render() but without DOM
+  const q = search.value.trim().toLowerCase();
+  const rows = data
+    .filter(d => typeFilter.value === 'all' ? true : d.type === typeFilter.value)
+    .filter(d => !q || d.name.toLowerCase().includes(q))
+    .filter(d => (d.renew==null ? true : d.renew >= +renMin.value))
+    .filter(d => (d.percap==null ? true : d.percap >= +pcMin.value))
+    .slice()
+    .sort((a,b)=>{
+      let A = a[sortKey], B = b[sortKey];
+      if(A==null && B==null) return 0;
+      if(A==null) return 1;
+      if(B==null) return -1;
+      if(typeof A === 'string') return sortDir * A.localeCompare(B);
+      return sortDir * (A - B);
+    });
+  exportCSV(rows);
+});
+
+// Initial render
+render();
+
+// Improve ripple pseudo-element using inline styles on click
+document.addEventListener('click', (e)=>{
+  if(e.target.closest('tr.ripple')){
+    const tr = e.target.closest('tr.ripple');
+    const rect = tr.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    tr.style.setProperty('--rx', x+'px');
+    tr.style.setProperty('--ry', y+'px');
+    tr.style.setProperty('--ripple-opacity', '1');
+    setTimeout(()=>tr.style.setProperty('--ripple-opacity', '0'), 450);
+  }
+});
+</script>
+
+<style>
+/* attach ripple using inline custom properties */
+.ripple::after{
+  left:var(--rx); top:var(--ry); transform:translate(-50%,-50%) scale(0);
+}
+.ripple.rippling::after{ transform:translate(-50%,-50%) scale(24); }
+</style>
+</body>
+</html>
